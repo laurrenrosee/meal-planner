@@ -748,6 +748,8 @@ function renderHistory() {
       meals.push({ emoji:'🍽️', name:e.name, cal:e.cal });
     });
     const dayActivity = loadActivity(dateStr);
+    const actEmoji = dayActivity === 'Gym' ? '🏋🏻‍♀️' : dayActivity === 'Movement' ? '🏃🏻‍♀️' : dayActivity === 'Rest' ? '🐢' : dayActivity === 'Work' ? '⚡' : '';
+    const actBadge = actEmoji ? '<span class="hd-cal" style="margin-right:2px;">' + actEmoji + '</span>' : '';
 
     const div = document.createElement('div');
     div.className = 'hist-day';
@@ -757,7 +759,7 @@ function renderHistory() {
           <div class="hd-date">${label} · ${full}</div>
         </div>
         <div class="hd-meta">
-          ${dayActivity ? `<span class="hd-cal" style="margin-right:2px;">${dayActivity === 'Gym' ? '🏋🏻‍♀️' : dayActivity === 'Movement' ? '🏃🏻‍♀️' : dayActivity === 'Rest' ? '🐢' : '⚡'}</span>` : ''}
+          ${actBadge}
           <span class="hd-cal">${totalCal} cal</span>
           <span class="hd-arrow">▾</span>
         </div>
@@ -776,7 +778,7 @@ function renderHistory() {
         </div>
         <div style="display:flex; gap:8px; margin-top:10px;">
           <button class="clear-day-btn" style="flex:1;" onclick="clearDay('${dateStr}', this.closest('.hist-day'))">Clear this day</button>
-          <button class="clear-day-btn" style="flex:1; border-color:#c0d8c0; color:${dateStr === todayStr() ? 'var(--green)' : 'var(--green)'};" onclick="exportToSheets('${dateStr}')">↗ Export</button>
+          <button class="clear-day-btn" style="flex:1; border-color:#c0d8c0; color:var(--green);" onclick="exportToSheets('${dateStr}')">↗ Export</button>
         </div>
       </div>`;
     container.appendChild(div);
@@ -935,7 +937,7 @@ Use realistic average estimates. All numbers should be integers.`
 
   } catch(err) {
     status.className = 'log-status error';
-    status.textContent = '⚠️ Couldn't look that up — try being more specific (e.g. "Chipotle chicken burrito bowl")';
+    status.textContent = "⚠️ Couldn't look that up — try being more specific";
   }
 
   btn.disabled = false;
