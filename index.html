@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>My Meal Planner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f2f0ec;
+    --card: #ffffff;
+    --dark: #1c1c1c;
+    --mid: #6b6b6b;
+    --light: #d8d5d0;
+    --prot: #c9622f;
+    --fat: #b8960c;
+    --carb: #3b7dd8;
+    --green: #3a8f5c;
+    --red: #d03b3b;
+    --pill: #f5f3ef;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--dark); min-height: 100vh; padding-bottom: 40px; }
+
+  /* ── VIEWS ── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── NAV ── */
+  .nav {
+    background: var(--dark); color: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; position: sticky; top: 0; z-index: 100;
+  }
+  .nav h1 { font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
+  .nav-btns { display: flex; gap: 8px; }
+  .nav-btn {
+    background: rgba(255,255,255,.12); border: none; color: #fff;
+    border-radius: 8px; padding: 6px 12px; font-size: 0.78rem;
+    font-family: inherit; cursor: pointer; font-weight: 600;
+    transition: background .15s;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,.22); }
+  .nav-btn.active-tab { background: #fff; color: var(--dark); }
+
+  /* ── DATE BAR ── */
+  .date-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--card);
+    border-bottom: 1px solid #ece9e4; position: sticky; top: 53px; z-index: 99;
+  }
+  .date-arrow {
+    background: none; border: 1.5px solid var(--light); border-radius: 8px;
+    padding: 6px 12px; font-size: 1rem; cursor: pointer; color: var(--dark);
+    transition: border-color .15s;
+  }
+  .date-arrow:hover { border-color: var(--dark); }
+  .date-label { font-weight: 700; font-size: 0.9rem; text-align: center; }
+  .date-sub { font-size: 0.72rem; color: var(--mid); text-align: center; margin-top: 1px; }
+
+  /* ── MAIN CONTENT ── */
+  .main { max-width: 680px; margin: 0 auto; padding: 16px 14px; }
+
+  /* ── TARGETS ── */
+  .targets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
+  .tc { background: var(--card); border-radius: 10px; padding: 10px 10px 8px; border-top: 3px solid var(--light); }
+  .tc.cal { border-top-color: var(--dark); }
+  .tc.prot { border-top-color: var(--prot); }
+  .tc.fat { border-top-color: var(--fat); }
+  .tc.carb { border-top-color: var(--carb); }
+  .tc .lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: .07em; color: var(--mid); }
+  .tc .val { font-family: 'DM Mono', monospace; font-size: 1rem; font-weight: 500; margin: 2px 0 1px; }
+  .tc.cal .val { color: var(--dark); }
+  .tc.prot .val { color: var(--prot); }
+  .tc.fat .val { color: var(--fat); }
+  .tc.carb .val { color: var(--carb); }
+  .tc .goal { font-size: 0.6rem; color: var(--mid); }
+  .bar-bg { background: #ece9e4; border-radius: 100px; height: 3px; margin-top: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 100px; transition: width .4s; }
+  .bar-fill.cal { background: var(--dark); }
+  .bar-fill.prot { background: var(--prot); }
+  .bar-fill.fat { background: var(--fat); }
+  .bar-fill.carb { background: var(--carb); }
+  .bar-fill.over { background: var(--red) !important; }
+
+  /* ── MEAL SECTIONS ── */
+  .meal-section { margin-bottom: 14px; }
+  .meal-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--mid); font-weight: 600; margin-bottom: 6px; padding-left: 2px; }
+  .options-grid { display: flex; flex-direction: column; gap: 6px; }
+
+  .opt-card {
+    background: var(--card); border-radius: 11px; padding: 11px 13px;
+    cursor: pointer; border: 2px solid transparent;
+    transition: border-color .15s, box-shadow .15s;
+    display: flex; align-items: center; gap: 10px; user-select: none;
+  }
+  .opt-card:active { opacity: .85; }
+  .opt-card:hover { border-color: var(--light); }
+  .opt-card.selected { border-color: var(--dark); background: #fafaf8; }
+  .opt-left { flex: 1; min-width: 0; }
+  .opt-name { font-weight: 600; font-size: 0.83rem; margin-bottom: 2px; }
+  .opt-ing { font-size: 0.7rem; color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .opt-macros { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .mt { font-family: 'DM Mono', monospace; font-size: 0.63rem; font-weight: 500; padding: 2px 5px; border-radius: 5px; background: var(--pill); white-space: nowrap; }
+  .mt.cal { color: var(--dark); }
+  .mt.prot { color: var(--prot); }
+  .mt.fat { color: var(--fat); }
+  .mt.carb { color: var(--carb); }
+  .check { width: 18px; height: 18px; border-radius: 50%; background: var(--dark); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; flex-shrink: 0; color: #fff; font-size: 10px; }
+  .opt-card.selected .check { opacity: 1; }
+  .slot-note { font-size: 0.68rem; color: var(--mid); font-style: italic; margin-top: 4px; padding-left: 2px; }
+
+  /* ── SUMMARY ── */
+  .summary-box { background: var(--dark); color: #fff; border-radius: 13px; padding: 16px 18px; margin-top: 16px; }
+  .summary-box h3 { font-size: 0.75rem; font-weight: 600; opacity: .55; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 12px; }
+  .sum-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .sum-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+  .sum-row .sn { opacity: .85; }
+  .sum-row .sc { font-family: 'DM Mono', monospace; font-size: 0.72rem; opacity: .5; }
+  .sum-divider { border: none; border-top: 1px solid rgba(255,255,255,.1); margin: 4px 0; }
+  .sum-totals { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 10px; }
+  .st { text-align: center; }
+  .st .sv { font-family: 'DM Mono', monospace; font-size: 0.95rem; font-weight: 500; }
+  .st .sl { font-size: 0.58rem; opacity: .45; text-transform: uppercase; letter-spacing: .05em; margin-top: 1px; }
+  .st.prot .sv { color: #e8896a; }
+  .st.fat .sv { color: #d4b84a; }
+  .st.carb .sv { color: #6da4f0; }
+  .rem-bar { margin-top: 12px; }
+  .rem-bar .rl { display: flex; justify-content: space-between; font-size: 0.68rem; opacity: .5; margin-bottom: 4px; }
+  .rem-bg { background: rgba(255,255,255,.15); border-radius: 100px; height: 5px; overflow: hidden; }
+  .rem-fill { height: 100%; border-radius: 100px; background: #fff; transition: width .4s; }
+  .rem-fill.over { background: #e87070; }
+  .empty-sum { text-align: center; padding: 14px; color: rgba(255,255,255,.3); font-size: 0.78rem; }
+
+  /* ── HISTORY VIEW ── */
+  .hist-main { max-width: 680px; margin: 0 auto; padding: 16px 14px; }
+  .hist-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; }
+  .hist-empty { text-align: center; padding: 40px 20px; color: var(--mid); font-size: 0.85rem; }
+
+  .hist-day {
+    background: var(--card); border-radius: 12px; margin-bottom: 10px;
+    overflow: hidden; cursor: pointer;
+  }
+  .hist-day-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 15px; border-bottom: 1px solid transparent;
+    transition: border-color .15s;
+  }
+  .hist-day.open .hist-day-header { border-bottom-color: #ece9e4; }
+  .hd-date { font-weight: 700; font-size: 0.88rem; }
+  .hd-meta { display: flex; gap: 8px; align-items: center; }
+  .hd-cal { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--mid); }
+  .hd-arrow { font-size: 0.75rem; color: var(--mid); transition: transform .2s; }
+  .hist-day.open .hd-arrow { transform: rotate(180deg); }
+
+  .hist-day-body { display: none; padding: 12px 15px; }
+  .hist-day.open .hist-day-body { display: block; }
+  .hist-meal-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 4px 0; border-bottom: 1px solid #f5f3ef; }
+  .hist-meal-row:last-child { border-bottom: none; }
+  .hist-meal-name { color: var(--dark); }
+  .hist-meal-cal { font-family: 'DM Mono', monospace; font-size: 0.73rem; color: var(--mid); }
+  .hist-macros { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ece9e4; }
+  .hm { flex: 1; text-align: center; background: var(--pill); border-radius: 7px; padding: 5px 3px; }
+  .hm .hv { font-family: 'DM Mono', monospace; font-size: 0.82rem; font-weight: 500; }
+  .hm .hl { font-size: 0.58rem; color: var(--mid); text-transform: uppercase; }
+  .hm.prot .hv { color: var(--prot); }
+  .hm.fat .hv { color: var(--fat); }
+  .hm.carb .hv { color: var(--carb); }
+
+  .clear-day-btn {
+    margin-top: 10px; width: 100%; background: none; border: 1.5px solid #f0d0d0;
+    color: var(--red); border-radius: 8px; padding: 7px; font-size: 0.75rem;
+    cursor: pointer; font-family: inherit; font-weight: 600; transition: background .15s;
+  }
+  .clear-day-btn:hover { background: #fff0f0; }
+
+  @media (max-width: 420px) {
+    .targets { grid-template-columns: repeat(2, 1fr); }
+    .mt.fat, .mt.carb { display: none; }
+  }
+
+  /* ── ACTIVITY TRACKER ── */
+  .activity-section { margin-bottom: 14px; }
+  .activity-box { background: var(--card); border-radius: 11px; padding: 13px 14px; }
+  .activity-box h4 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mid); margin-bottom: 10px; }
+  .activity-options { display: flex; gap: 8px; flex-wrap: wrap; }
+  .activity-btn {
+    flex: 1; min-width: 70px; padding: 9px 8px; border-radius: 9px;
+    border: 2px solid var(--light); background: none; font-family: inherit;
+    font-size: 0.8rem; font-weight: 600; color: var(--mid); cursor: pointer;
+    transition: all .15s; text-align: center;
+  }
+  .activity-btn:hover { border-color: var(--dark); color: var(--dark); }
+  .activity-btn.selected-gym { border-color: #3a8f5c; background: #f0faf4; color: #3a8f5c; }
+  .activity-btn.selected-movement { border-color: #3b7dd8; background: #f0f5ff; color: #3b7dd8; }
+  .activity-btn.selected-rest { border-color: #b8960c; background: #fdf8e8; color: #b8960c; }
+  .activity-btn.selected-work { border-color: #c9622f; background: #fdf3ef; color: #c9622f; }
+
+  /* ── CUSTOM LOG ── */
+  .log-section { margin-bottom: 14px; }
+  .log-box { background: var(--card); border-radius: 11px; padding: 13px 14px; }
+  .log-box h4 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mid); margin-bottom: 10px; }
+  .log-row { display: flex; gap: 8px; }
+  .log-input {
+    flex: 1; border: 1.5px solid var(--light); border-radius: 9px;
+    padding: 9px 12px; font-size: 0.85rem; font-family: inherit;
+    outline: none; transition: border-color .15s; background: #fafaf8;
+    color: var(--dark);
+  }
+  .log-input:focus { border-color: var(--dark); }
+  .log-input::placeholder { color: #b0ada8; }
+  .log-btn {
+    background: var(--dark); color: #fff; border: none; border-radius: 9px;
+    padding: 9px 16px; font-size: 0.83rem; font-family: inherit; font-weight: 700;
+    cursor: pointer; white-space: nowrap; transition: opacity .15s; flex-shrink: 0;
+  }
+  .log-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .log-status { font-size: 0.75rem; color: var(--mid); margin-top: 8px; min-height: 18px; transition: color .2s; }
+  .log-status.error { color: var(--red); }
+  .log-status.success { color: var(--green); }
+
+  .custom-entries { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .custom-entry {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #f7f5f2; border-radius: 8px; padding: 8px 10px; gap: 8px;
+  }
+  .ce-left { flex: 1; min-width: 0; }
+  .ce-name { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ce-macros { display: flex; gap: 4px; margin-top: 3px; }
+  .ce-remove { background: none; border: none; color: #c0bbb5; font-size: 1.1rem; cursor: pointer; padding: 0 2px; flex-shrink: 0; line-height: 1; }
+  .ce-remove:hover { color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="nav">
+  <h1>🥗 Meal Planner</h1>
+  <div class="nav-btns">
+    <button class="nav-btn active-tab" onclick="showView('planner')">Today</button>
+    <button class="nav-btn" onclick="showView('history')">History</button>
+  </div>
+</div>
+
+<!-- ══ PLANNER VIEW ══ -->
+<div class="view active" id="view-planner">
+
+  <!-- Date bar -->
+  <div class="date-bar">
+    <button class="date-arrow" onclick="changeDate(-1)">‹</button>
+    <div>
+      <div class="date-label" id="date-label">Today</div>
+      <div class="date-sub" id="date-sub"></div>
+    </div>
+    <button class="date-arrow" onclick="changeDate(1)">›</button>
+  </div>
+
+  <div class="main">
+    <!-- Targets -->
+    <div class="targets">
+      <div class="tc cal"><div class="lbl">Calories</div><div class="val" id="t-cal">0</div><div class="goal">of 1,600</div><div class="bar-bg"><div class="bar-fill cal" id="b-cal" style="width:0%"></div></div></div>
+      <div class="tc prot"><div class="lbl">Protein</div><div class="val" id="t-prot">0g</div><div class="goal">of 150g</div><div class="bar-bg"><div class="bar-fill prot" id="b-prot" style="width:0%"></div></div></div>
+      <div class="tc fat"><div class="lbl">Fat</div><div class="val" id="t-fat">0g</div><div class="goal">of 53g</div><div class="bar-bg"><div class="bar-fill fat" id="b-fat" style="width:0%"></div></div></div>
+      <div class="tc carb"><div class="lbl">Carbs</div><div class="val" id="t-carb">0g</div><div class="goal">of 130g</div><div class="bar-bg"><div class="bar-fill carb" id="b-carb" style="width:0%"></div></div></div>
+    </div>
+
+    <!-- Meal slots -->
+    <div id="meal-sections"></div>
+
+    <!-- Activity Tracker -->
+    <div class="activity-section">
+      <div class="activity-box">
+        <h4>💪 Today's Activity</h4>
+        <div class="activity-options">
+          <button class="activity-btn" id="act-gym"      onclick="setActivity('Gym')"      >🏋🏻‍♀️ Gym</button>
+          <button class="activity-btn" id="act-movement" onclick="setActivity('Movement')" >🏃🏻‍♀️ Movement</button>
+          <button class="activity-btn" id="act-rest"     onclick="setActivity('Rest')"     >🐢 Rest</button>
+          <button class="activity-btn" id="act-work"     onclick="setActivity('Work')"     >⚡ Work</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Log -->
+    <div class="log-section">
+      <div class="log-box">
+        <h4>✏️ Log Something Else</h4>
+        <div class="log-row">
+          <input class="log-input" id="log-input" type="text" placeholder="e.g. Chipotle burrito, 2 slices pizza, McDonald's fries…" />
+          <button class="log-btn" id="log-btn" onclick="logCustomMeal()">Add</button>
+        </div>
+        <div class="log-status" id="log-status"></div>
+        <div class="custom-entries" id="custom-entries"></div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-box">
+      <h3>Today's Meals</h3>
+      <div class="sum-rows" id="sum-rows"><div class="empty-sum">Tap a meal above to start building your day</div></div>
+      <hr class="sum-divider">
+      <div class="sum-totals">
+        <div class="st cal"><div class="sv" id="s-cal">0</div><div class="sl">kcal</div></div>
+        <div class="st prot"><div class="sv" id="s-prot">0g</div><div class="sl">protein</div></div>
+        <div class="st fat"><div class="sv" id="s-fat">0g</div><div class="sl">fat</div></div>
+        <div class="st carb"><div class="sv" id="s-carb">0g</div><div class="sl">carbs</div></div>
+      </div>
+      <div class="rem-bar">
+        <div class="rl"><span>Calories used</span><span id="rem-lbl">0 / 1,600</span></div>
+        <div class="rem-bg"><div class="rem-fill" id="rem-fill" style="width:0%"></div></div>
+      </div>
+      <div style="margin-top:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <button id="export-btn" onclick="exportToSheets(currentDate)" style="background:rgba(255,255,255,.15); border:none; color:#fff; border-radius:8px; padding:8px 14px; font-size:0.78rem; font-family:inherit; font-weight:600; cursor:pointer; transition:background .15s; white-space:nowrap;">↗ Export to Sheets</button>
+        <div id="export-status" class="log-status" style="color:rgba(255,255,255,.6); margin-top:0;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HISTORY VIEW ══ -->
+<div class="view" id="view-history">
+  <div class="hist-main">
+    <div class="hist-title">📅 My History</div>
+    <div id="hist-content"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  MEAL DATA
+// ══════════════════════════════════════════
+const TARGETS = { cal: 1600, prot: 150, fat: 53, carb: 130 };
+
+const MEALS = [
+  {
+    slot: 'breakfast', label: '🌅 Breakfast', single: true, note: null,
+    options: [
+      { id:'b1', emoji:'🍳', name:'Bagel Scramble', ingredients:"TJ's GF Bagel (½) · Hash Browns · Egg Whites (2 svgs) · Ham · Cheese (2 tbsp)", cal:241, prot:16, fat:5, carb:31 },
+      { id:'b2', emoji:'☕', name:'Starbucks Bacon Gouda Sandwich', ingredients:'Applewood bacon · Aged Gouda · Egg frittata · Artisan roll', cal:370, prot:18, fat:19, carb:33 }
+    ]
+  },
+  {
+    slot: 'lunch', label: '☀️ Lunch', single: true, note: null,
+    options: [
+      { id:'l1', emoji:'🌮', name:'Chicken Caesar Tacos', ingredients:"Siete Tortillas (2) · Chicken Strips (113g) · Nando's · Caesar Dressing · Parmesan", cal:462, prot:36, fat:23, carb:24 },
+      { id:'l2', emoji:'🥗', name:'Big Chicken Caesar Bowl', ingredients:"Chicken Strips (170g) · Romaine · Nando's · Caesar Dressing · Parmesan", cal:370, prot:46, fat:21, carb:3 },
+      { id:'l3', emoji:'🍔', name:'Burger Bowl', ingredients:'90/10 Ground Beef (140g) · Romaine · Kirkland Cheese (2 tbsp) · Hot Sauce', cal:440, prot:38, fat:18, carb:2 },
+      { id:'l4', emoji:'🥩', name:'Steak & Greens Bowl', ingredients:'Sirloin (140g) · Romaine · Parmesan · Caesar Dressing', cal:405, prot:40, fat:21, carb:4 },
+      { id:'l5', emoji:'🌯', name:'Chipotle Half Steak / Half Chicken Bowl', ingredients:'Half Steak + Half Chicken · Cheese · Sour Cream · Romaine · No rice, no beans', cal:390, prot:35, fat:26, carb:4 },
+      { id:'l6', emoji:'🌯', name:'Homemade Crunchwrap', ingredients:'Large Flour Tortilla · 90/10 Beef (140g) · Kirkland Cheese · Sour Cream · Tostada Shell · Romaine · Hot Sauce', cal:620, prot:40, fat:27, carb:38 }
+    ]
+  },
+  {
+    slot: 'lunchfruit', label: '🍓 Lunch Fruit (optional)', single: true, note: null,
+    options: [
+      { id:'lf1', emoji:'🍓', name:'Strawberries', ingredients:'150g (~1 cup sliced) · lowest calorie & carb option', cal:48, prot:1, fat:0, carb:11 },
+      { id:'lf2', emoji:'🫐', name:'Blueberries', ingredients:'120g (~¾ cup) · antioxidant powerhouse', cal:62, prot:1, fat:0, carb:16 },
+      { id:'lf3', emoji:'🍍', name:'Pineapple', ingredients:'100g (~¾ cup chunks) · tropical & sweet', cal:50, prot:1, fat:0, carb:13 }
+    ]
+  },
+  {
+    slot: 'dinner', label: '🌙 Dinner', single: true, note: null,
+    options: [
+      { id:'d1', emoji:'🥩', name:'Steak + Baked Potato + Green Beans', ingredients:'Sirloin (140g) · Baked Potato · Canned Green Beans', cal:405, prot:40, fat:9, carb:41 },
+      { id:'d2', emoji:'🍔', name:'Burger Bowl', ingredients:'90/10 Ground Beef (140g) · Baked Potato · Kirkland Cheese · Romaine', cal:413, prot:38, fat:15, carb:32 },
+      { id:'d3', emoji:'🌮', name:'Taco Bowl', ingredients:'90/10 Ground Beef (140g) · Baked Potato · Kirkland Cheese · Lettuce · Taco Seasoning', cal:413, prot:38, fat:15, carb:32 },
+      { id:'d4', emoji:'🍗', name:'Chicken Strips + Potato + Broccoli', ingredients:'Kirkland Grilled Chicken (128g) · Baked Potato · Frozen Broccoli', cal:375, prot:41, fat:3, carb:47 },
+      { id:'d5', emoji:'🥩', name:'Steak + Broccoli (Low Carb)', ingredients:'Sirloin (170g) · Frozen Broccoli (1.5 cups)', cal:330, prot:50, fat:12, carb:12 }
+    ]
+  },
+  {
+    slot: 'fourth', label: '🌙 4th Meal', single: true, note: null,
+    options: [
+      { id:'f1', emoji:'🥛', name:'Casein Protein Shake', ingredients:'ON Chocolate Casein (1 scoop) · Fairlife Fat Free (10oz) · Chobani Sweet Cream Creamer (splash)', cal:255, prot:40, fat:3, carb:16 },
+      { id:'f2', emoji:'🍗', name:'Applegate GF Chicken Nuggets (9)', ingredients:'Applegate Farms GF Nuggets · 1.5 servings · microwave in minutes', cal:240, prot:17, fat:11, carb:21 },
+      { id:'f3', emoji:'🍗', name:'Applegate GF Chicken Nuggets (6)', ingredients:'Applegate Farms GF Nuggets · 1 serving · lighter option', cal:160, prot:11, fat:7, carb:14 },
+      { id:'f4', emoji:'🍗', name:'Applegate Nuggets (6) + Cheese Stick', ingredients:'Applegate GF Nuggets (6) · Polly-O Twist Cheese Stick (1)', cal:220, prot:16, fat:11, carb:14 }
+    ]
+  },
+  {
+    slot: 'snack', label: '🍎 Snack', single: false,
+    note: 'Mix & match — pick as many as you want.',
+    options: [
+      { id:'s1', emoji:'🧀', name:'Polly-O Twist Cheese Stick', ingredients:'1 stick · 60 cal · 5g protein', cal:60, prot:5, fat:4, carb:0 },
+      { id:'s2', emoji:'🌰', name:'Lightly Salted Cashews', ingredients:'1 oz (~18 cashews)', cal:160, prot:5, fat:13, carb:8 },
+      { id:'s3', emoji:'🌽', name:'Sprouts White Corn Tortilla Chips', ingredients:'14 chips (1 svg)', cal:140, prot:2, fat:7, carb:16 },
+      { id:'s4', emoji:'🧡', name:"Trader Joe's Cheese Puffs", ingredients:'35 puffs (1 svg) · reduced fat', cal:140, prot:2, fat:7, carb:18 },
+      { id:'s5', emoji:'🟡', name:'Pipcorn Cheese Balls', ingredients:'1 oz · heirloom corn · avocado oil', cal:140, prot:3, fat:8, carb:15 },
+      { id:'s6', emoji:'🐠', name:'Baby Goldfish Crackers', ingredients:'89 pieces (1 svg) · cheddar', cal:140, prot:3, fat:5, carb:20 },
+      { id:'s7', emoji:'🥕', name:'Raw Baby Carrots', ingredients:'1 cup (85g) · super low cal', cal:35, prot:1, fat:0, carb:8 },
+      { id:'s8', emoji:'🥒', name:"Cucumber + Marie's Blue Cheese", ingredients:"Cucumber (120g) · Marie's Chunky Blue Cheese (2 tbsp)", cal:176, prot:2, fat:18, carb:5 }
+    ]
+  }
+];
+
+// ══════════════════════════════════════════
+//  GOOGLE SHEETS CONFIG
+// ══════════════════════════════════════════
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzW6-R9_A4Qgb_qsJQahCUhxEcdeRYwugCHuJ_ZEe5z3ZDnE-UD6OZFKuDoRj7evcz9/exec';
+
+async function exportToSheets(dateStr) {
+  const btn = document.getElementById('export-btn');
+  const status = document.getElementById('export-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
+  if (status) { status.className = 'log-status'; status.textContent = 'Sending to Google Sheets…'; }
+
+  try {
+    const { day, full } = formatDisplay(dateStr);
+    const plain = loadDay(dateStr);
+    const custom = loadCustom(dateStr);
+
+    let totalCal=0, totalProt=0, totalFat=0, totalCarb=0;
+    const mealNames = [];
+    const customNames = [];
+
+    Object.values(plain).forEach(ids => {
+      ids.forEach(id => {
+        const opt = getOptById(id);
+        if (opt) {
+          totalCal+=opt.cal; totalProt+=opt.prot; totalFat+=opt.fat; totalCarb+=opt.carb;
+          mealNames.push(opt.name);
+        }
+      });
+    });
+    custom.forEach(e => {
+      totalCal+=e.cal; totalProt+=e.prot; totalFat+=e.fat; totalCarb+=e.carb;
+      customNames.push(e.name + ' (' + e.cal + ' cal)');
+    });
+
+    const activity = loadActivity(dateStr);
+    const payload = {
+      date: dateStr,
+      day: (dateStr === todayStr() ? 'Today' : day) + ' · ' + full,
+      totalCal, totalProt, totalFat, totalCarb,
+      meals: mealNames.join(', ') || '—',
+      custom: customNames.join(', ') || '—',
+      activity: activity || '—'
+    };
+
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (status) { status.className = 'log-status success'; status.textContent = '✓ Exported to Google Sheets!'; }
+    setTimeout(() => { if (status) status.textContent = ''; }, 4000);
+  } catch(err) {
+    if (status) { status.className = 'log-status error'; status.textContent = '⚠️ Export failed — check your connection and try again.'; }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '↗ Export to Sheets'; }
+}
+
+// ══════════════════════════════════════════
+//  STORAGE  (localStorage)
+// ══════════════════════════════════════════
+function storageKey(dateStr) { return 'mp_day_' + dateStr; }
+
+function saveDay(dateStr, selections) {
+  try { localStorage.setItem(storageKey(dateStr), JSON.stringify(selections)); } catch(e) {}
+}
+
+function loadDay(dateStr) {
+  try {
+    const raw = localStorage.getItem(storageKey(dateStr));
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function getAllDays() {
+  const days = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('mp_day_')) {
+        const dateStr = key.replace('mp_day_', '');
+        const data = loadDay(dateStr);
+        if (Object.keys(data).length > 0) days.push({ dateStr, data });
+      }
+    }
+  } catch(e) {}
+  return days.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+}
+
+// ══════════════════════════════════════════
+//  DATE HELPERS
+// ══════════════════════════════════════════
+function toDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+function todayStr() { return toDateStr(new Date()); }
+
+function formatDisplay(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return { day: days[dt.getDay()], full: months[m-1] + ' ' + d + ', ' + y };
+}
+
+function offsetDate(dateStr, offset) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate() + offset);
+  return toDateStr(dt);
+}
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let currentDate = todayStr();
+let selections = {}; // slot -> Set of ids
+
+function initSelections() {
+  selections = {};
+  MEALS.forEach(m => { selections[m.slot] = new Set(); });
+}
+
+function selectionsToPlain() {
+  const out = {};
+  MEALS.forEach(m => {
+    const arr = [...selections[m.slot]];
+    if (arr.length > 0) out[m.slot] = arr;
+  });
+  return out;
+}
+
+function plainToSelections(plain) {
+  initSelections();
+  MEALS.forEach(m => {
+    if (plain[m.slot]) plain[m.slot].forEach(id => selections[m.slot].add(id));
+  });
+}
+
+// ══════════════════════════════════════════
+//  BUILD UI
+// ══════════════════════════════════════════
+function buildMealSections() {
+  const container = document.getElementById('meal-sections');
+  container.innerHTML = '';
+  MEALS.forEach(meal => {
+    const sec = document.createElement('div');
+    sec.className = 'meal-section';
+    sec.innerHTML = `<div class="meal-label">${meal.label}</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'options-grid';
+    meal.options.forEach(opt => {
+      const card = document.createElement('div');
+      card.className = 'opt-card';
+      card.id = 'card-' + opt.id;
+      card.innerHTML = `
+        <div class="opt-left">
+          <div class="opt-name">${opt.emoji} ${opt.name}</div>
+          <div class="opt-ing">${opt.ingredients}</div>
+        </div>
+        <div class="opt-macros">
+          <div class="mt cal">${opt.cal}</div>
+          <div class="mt prot">${opt.prot}p</div>
+          <div class="mt fat">${opt.fat}f</div>
+          <div class="mt carb">${opt.carb}c</div>
+        </div>
+        <div class="check">✓</div>`;
+      card.addEventListener('click', () => toggle(meal, opt));
+      grid.appendChild(card);
+    });
+    sec.appendChild(grid);
+    if (meal.note) {
+      const n = document.createElement('div');
+      n.className = 'slot-note';
+      n.textContent = meal.note;
+      sec.appendChild(n);
+    }
+    container.appendChild(sec);
+  });
+}
+
+function syncCardStates() {
+  MEALS.forEach(meal => {
+    meal.options.forEach(opt => {
+      const card = document.getElementById('card-' + opt.id);
+      if (card) card.classList.toggle('selected', selections[meal.slot].has(opt.id));
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+//  TOGGLE & SAVE
+// ══════════════════════════════════════════
+function toggle(meal, opt) {
+  const slot = meal.slot;
+  if (selections[slot].has(opt.id)) {
+    selections[slot].delete(opt.id);
+  } else {
+    if (meal.single) {
+      selections[slot].forEach(id => {
+        const el = document.getElementById('card-' + id);
+        if (el) el.classList.remove('selected');
+      });
+      selections[slot].clear();
+    }
+    selections[slot].add(opt.id);
+  }
+  const card = document.getElementById('card-' + opt.id);
+  if (card) card.classList.toggle('selected', selections[slot].has(opt.id));
+  updateTotals();
+  saveDay(currentDate, selectionsToPlain());
+}
+
+// ══════════════════════════════════════════
+//  TOTALS
+// ══════════════════════════════════════════
+function getSelected() {
+  const res = [];
+  MEALS.forEach(meal => {
+    selections[meal.slot].forEach(id => {
+      const opt = meal.options.find(o => o.id === id);
+      if (opt) res.push({ slotLabel: meal.label, opt });
+    });
+  });
+  return res;
+}
+
+function updateTotals() {
+  const sel = getSelected();
+  let cal=0, prot=0, fat=0, carb=0;
+  sel.forEach(({opt}) => { cal+=opt.cal; prot+=opt.prot; fat+=opt.fat; carb+=opt.carb; });
+  // Add custom logged entries
+  loadCustom(currentDate).forEach(e => { cal+=e.cal; prot+=e.prot; fat+=e.fat; carb+=e.carb; });
+
+  setBar('cal', cal, 1600, false);
+  setBar('prot', prot, 150, true, 'g');
+  setBar('fat', fat, 53, true, 'g');
+  setBar('carb', carb, 130, true, 'g');
+
+  const rows = document.getElementById('sum-rows');
+  const custom = loadCustom(currentDate);
+  if (sel.length === 0 && custom.length === 0) {
+    rows.innerHTML = '<div class="empty-sum">Tap a meal above to start building your day</div>';
+  } else {
+    const selRows = sel.map(({opt}) =>
+      `<div class="sum-row"><span class="sn">${opt.emoji} ${opt.name}</span><span class="sc">${opt.cal} cal</span></div>`
+    ).join('');
+    const customRows = custom.map(e =>
+      `<div class="sum-row"><span class="sn">🍽️ ${e.name}</span><span class="sc">${e.cal} cal</span></div>`
+    ).join('');
+    rows.innerHTML = selRows + customRows;
+  }
+  document.getElementById('s-cal').textContent = cal;
+  document.getElementById('s-prot').textContent = prot + 'g';
+  document.getElementById('s-fat').textContent = fat + 'g';
+  document.getElementById('s-carb').textContent = carb + 'g';
+
+  const pct = Math.min((cal/1600)*100, 100);
+  const fill = document.getElementById('rem-fill');
+  fill.style.width = pct + '%';
+  fill.classList.toggle('over', cal > 1680);
+  document.getElementById('rem-lbl').textContent = cal + ' / 1,600';
+}
+
+function setBar(key, val, max, showUnit, unit='') {
+  const pct = Math.min((val/max)*100, 100);
+  document.getElementById('t-' + key).textContent = val + (showUnit ? unit : '');
+  const bar = document.getElementById('b-' + key);
+  bar.style.width = pct + '%';
+  bar.classList.toggle('over', val > max * 1.05);
+}
+
+// ══════════════════════════════════════════
+//  DATE NAV
+// ══════════════════════════════════════════
+function loadDate(dateStr) {
+  currentDate = dateStr;
+  const plain = loadDay(dateStr);
+  plainToSelections(plain);
+  syncCardStates();
+  renderCustomEntries();
+  renderActivity();
+  updateDateLabel();
+}
+
+function changeDate(offset) {
+  loadDate(offsetDate(currentDate, offset));
+}
+
+function updateDateLabel() {
+  const { day, full } = formatDisplay(currentDate);
+  const isToday = currentDate === todayStr();
+  document.getElementById('date-label').textContent = isToday ? 'Today' : day;
+  document.getElementById('date-sub').textContent = full;
+}
+
+// ══════════════════════════════════════════
+//  VIEWS
+// ══════════════════════════════════════════
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-tab'));
+  event.target.classList.add('active-tab');
+  if (name === 'history') renderHistory();
+}
+
+// ══════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════
+function getOptById(id) {
+  for (const meal of MEALS) {
+    const opt = meal.options.find(o => o.id === id);
+    if (opt) return opt;
+  }
+  return null;
+}
+
+function renderHistory() {
+  const days = getAllDays();
+  const container = document.getElementById('hist-content');
+  if (days.length === 0) {
+    container.innerHTML = '<div class="hist-empty">No days logged yet.<br>Start selecting meals on the Today tab!</div>';
+    return;
+  }
+  container.innerHTML = '';
+  days.forEach(({ dateStr, data }) => {
+    const { day, full } = formatDisplay(dateStr);
+    const isToday = dateStr === todayStr();
+    const label = isToday ? 'Today' : day;
+
+    let totalCal=0, totalProt=0, totalFat=0, totalCarb=0;
+    const meals = [];
+    Object.values(data).forEach(ids => {
+      ids.forEach(id => {
+        const opt = getOptById(id);
+        if (opt) {
+          totalCal+=opt.cal; totalProt+=opt.prot; totalFat+=opt.fat; totalCarb+=opt.carb;
+          meals.push(opt);
+        }
+      });
+    });
+    // Include custom entries in history
+    const customEntries = loadCustom(dateStr);
+    customEntries.forEach(e => {
+      totalCal+=e.cal; totalProt+=e.prot; totalFat+=e.fat; totalCarb+=e.carb;
+      meals.push({ emoji:'🍽️', name:e.name, cal:e.cal });
+    });
+    const dayActivity = loadActivity(dateStr);
+
+    const div = document.createElement('div');
+    div.className = 'hist-day';
+    div.innerHTML = `
+      <div class="hist-day-header" onclick="toggleHistDay(this.parentElement)">
+        <div>
+          <div class="hd-date">${label} · ${full}</div>
+        </div>
+        <div class="hd-meta">
+          ${dayActivity ? `<span class="hd-cal" style="margin-right:2px;">${dayActivity === 'Gym' ? '🏋🏻‍♀️' : dayActivity === 'Movement' ? '🏃🏻‍♀️' : dayActivity === 'Rest' ? '🐢' : '⚡'}</span>` : ''}
+          <span class="hd-cal">${totalCal} cal</span>
+          <span class="hd-arrow">▾</span>
+        </div>
+      </div>
+      <div class="hist-day-body">
+        ${meals.map(m => `
+          <div class="hist-meal-row">
+            <span class="hist-meal-name">${m.emoji} ${m.name}</span>
+            <span class="hist-meal-cal">${m.cal} cal</span>
+          </div>`).join('')}
+        <div class="hist-macros">
+          <div class="hm cal"><div class="hv">${totalCal}</div><div class="hl">kcal</div></div>
+          <div class="hm prot"><div class="hv">${totalProt}g</div><div class="hl">protein</div></div>
+          <div class="hm fat"><div class="hv">${totalFat}g</div><div class="hl">fat</div></div>
+          <div class="hm carb"><div class="hv">${totalCarb}g</div><div class="hl">carbs</div></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="clear-day-btn" style="flex:1;" onclick="clearDay('${dateStr}', this.closest('.hist-day'))">Clear this day</button>
+          <button class="clear-day-btn" style="flex:1; border-color:#c0d8c0; color:${dateStr === todayStr() ? 'var(--green)' : 'var(--green)'};" onclick="exportToSheets('${dateStr}')">↗ Export</button>
+        </div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+function toggleHistDay(el) {
+  el.classList.toggle('open');
+}
+
+function clearDay(dateStr, el) {
+  if (!confirm('Clear all meals for this day?')) return;
+  try { localStorage.removeItem(storageKey(dateStr)); } catch(e) {}
+  try { localStorage.removeItem(customKey(dateStr)); } catch(e) {}
+  try { localStorage.removeItem(activityStorageKey(dateStr)); } catch(e) {}
+  el.remove();
+  if (dateStr === currentDate) {
+    initSelections();
+    syncCardStates();
+    updateTotals();
+  }
+  const container = document.getElementById('hist-content');
+  if (!container.querySelector('.hist-day')) {
+    container.innerHTML = '<div class="hist-empty">No days logged yet.<br>Start selecting meals on the Today tab!</div>';
+  }
+}
+
+// ══════════════════════════════════════════
+//  ACTIVITY TRACKER
+// ══════════════════════════════════════════
+const ACTIVITIES = ['Gym', 'Movement', 'Rest', 'Work'];
+const ACTIVITY_KEYS = { Gym: 'gym', Movement: 'movement', Rest: 'rest', Work: 'work' };
+
+function activityStorageKey(dateStr) { return 'mp_activity_' + dateStr; }
+
+function saveActivity(dateStr, value) {
+  try { localStorage.setItem(activityStorageKey(dateStr), value); } catch(e) {}
+}
+
+function loadActivity(dateStr) {
+  try { return localStorage.getItem(activityStorageKey(dateStr)) || ''; } catch(e) { return ''; }
+}
+
+function setActivity(value) {
+  const current = loadActivity(currentDate);
+  // Toggle off if already selected
+  const newVal = current === value ? '' : value;
+  saveActivity(currentDate, newVal);
+  renderActivity();
+}
+
+function renderActivity() {
+  const current = loadActivity(currentDate);
+  ACTIVITIES.forEach(a => {
+    const btn = document.getElementById('act-' + ACTIVITY_KEYS[a]);
+    if (!btn) return;
+    // Remove all selected classes
+    btn.className = 'activity-btn';
+    if (current === a) {
+      btn.classList.add('selected-' + ACTIVITY_KEYS[a]);
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+//  CUSTOM LOG ENTRIES
+// ══════════════════════════════════════════
+function customKey(dateStr) { return 'mp_custom_' + dateStr; }
+
+function saveCustom(dateStr, entries) {
+  try { localStorage.setItem(customKey(dateStr), JSON.stringify(entries)); } catch(e) {}
+}
+
+function loadCustom(dateStr) {
+  try {
+    const raw = localStorage.getItem(customKey(dateStr));
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function renderCustomEntries() {
+  const entries = loadCustom(currentDate);
+  const container = document.getElementById('custom-entries');
+  if (!container) return;
+  container.innerHTML = '';
+  entries.forEach((e, i) => {
+    const div = document.createElement('div');
+    div.className = 'custom-entry';
+    div.innerHTML = `
+      <div class="ce-left">
+        <div class="ce-name">🍽️ ${e.name}</div>
+        <div class="ce-macros">
+          <div class="mt cal">${e.cal}</div>
+          <div class="mt prot">${e.prot}p</div>
+          <div class="mt fat">${e.fat}f</div>
+          <div class="mt carb">${e.carb}c</div>
+        </div>
+      </div>
+      <button class="ce-remove" onclick="removeCustomEntry(${i})" title="Remove">×</button>`;
+    container.appendChild(div);
+  });
+  updateTotals();
+}
+
+function removeCustomEntry(index) {
+  const entries = loadCustom(currentDate);
+  entries.splice(index, 1);
+  saveCustom(currentDate, entries);
+  renderCustomEntries();
+}
+
+async function logCustomMeal() {
+  const input = document.getElementById('log-input');
+  const btn = document.getElementById('log-btn');
+  const status = document.getElementById('log-status');
+  const text = input.value.trim();
+  if (!text) return;
+
+  btn.disabled = true;
+  btn.textContent = '…';
+  status.className = 'log-status';
+  status.textContent = 'Looking up nutrition info…';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: `Estimate the nutrition for this food/meal: "${text}".
+Reply with ONLY a JSON object, no other text, no markdown, no explanation:
+{"name":"short readable name","cal":number,"prot":number,"fat":number,"carb":number}
+Use realistic average estimates. All numbers should be integers.`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content?.[0]?.text?.trim() || '';
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    if (!parsed.name || parsed.cal === undefined) throw new Error('Bad response');
+
+    const entries = loadCustom(currentDate);
+    entries.push(parsed);
+    saveCustom(currentDate, entries);
+
+    input.value = '';
+    status.className = 'log-status success';
+    status.textContent = `✓ Added: ${parsed.name} — ${parsed.cal} cal, ${parsed.prot}g protein`;
+    setTimeout(() => { if (status.className.includes('success')) status.textContent = ''; }, 4000);
+    renderCustomEntries();
+
+  } catch(err) {
+    status.className = 'log-status error';
+    status.textContent = '⚠️ Couldn't look that up — try being more specific (e.g. "Chipotle chicken burrito bowl")';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Add';
+}
+
+// Allow pressing Enter to submit
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('log-input');
+  if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') logCustomMeal(); });
+});
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+buildMealSections();
+initSelections();
+loadDate(todayStr());
+</script>
+</body>
+</html>
